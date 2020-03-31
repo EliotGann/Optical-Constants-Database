@@ -34,9 +34,15 @@ function getdelta(materialname,wavelength,[pathname,aligned])
 	aligned = paramisdefault(aligned) ? -1 : aligned
 	if(aligned == 0)
 		wave deltaw = $("delta_"+materialname +"perp")
+		if(!waveexists(deltaw))
+			wave deltaw = $("delta_"+materialname)
+		endif
 		wave enw = $("energy_"+materialname)
 	elseif(aligned == 1)
 		wave deltaw = $("delta_"+materialname +"para")
+		if(!waveexists(deltaw))
+			wave deltaw = $("delta_"+materialname)
+		endif
 		wave enw = $("energy_"+materialname)
 	else
 		wave deltaw = $("delta_"+materialname )
@@ -56,10 +62,16 @@ function getbeta(materialname,wavelength,[pathname,aligned])
 	setdatafolder pathname
 	aligned = paramisdefault(aligned) ? -1 : aligned
 	if(aligned == 0)
-		wave betaw = $("beta_"+materialname +"perp")
+		wave/z betaw = $("beta_"+materialname +"perp")
+		if(!waveexists(betaw))
+			wave betaw = $("beta_"+materialname )
+		endif
 		wave enw = $("energy_"+materialname)
 	elseif(aligned == 1)
-		wave betaw = $("beta_"+materialname +"para")
+		wave/z betaw = $("beta_"+materialname +"para")
+		if(!waveexists(betaw))
+			wave betaw = $("beta_"+materialname )
+		endif
 		wave enw = $("energy_"+materialname)
 	else
 		wave betaw = $("beta_"+materialname )
