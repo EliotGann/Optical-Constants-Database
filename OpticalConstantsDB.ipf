@@ -7,7 +7,7 @@ Menu "Macros"
 			help={"Loads opticalconstants.txt from User Procedures"}
 	end
 End
-function loadOC()
+function loadOC_old()
 	string foldersave = getdatafolder(1)
 	setdatafolder root:
 	newdatafolder /s/o opticalconstants
@@ -21,7 +21,7 @@ function loadOC()
 		LoadWave/J/D/W/O/Q/G/K=0/A /p=opticalconstants "opticalconstants.txt"
 	endif
 	setdatafolder foldersave
-end	
+end
 function getdelta(materialname,wavelength,[pathname,aligned])
 	string materialname,pathname
 	variable wavelength,aligned // aligned is
@@ -301,8 +301,8 @@ Function SaveOC_button(ba) : ButtonControl
 			setdatafolder ::
 			// update the opticalconstants DB file
 			NewPath/C/Z/Q/O opticalconstants SpecialDirPath("Igor Pro User files",0,0,0)+"User Procedures:Optical Constants"
-			
-			Save/O/G/W/U={0,0,1,0}/B /p=opticalconstants wavelist("*",";","") as "OpticalConstants.txt"
+			saveallOCs()
+			//Save/O/G/W/U={0,0,1,0}/B /p=opticalconstants wavelist("*",";","") as "OpticalConstants.txt"
 			break
 		case -1: // control being killed
 			break
