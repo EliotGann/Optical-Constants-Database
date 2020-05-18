@@ -473,3 +473,407 @@ function sparcewaves(accuracy)
 	print size
 	
 end
+
+
+function testHDF5OCwrite(path, filename, EN_WAVE, isodelta,isobeta[paradelta,parabeta,perpdelta,perpbeta])
+	string path, filename
+	wave en_wave, isodelta, isobeta,paradelta,parabeta,perpdelta,perpbeta
+	variable unaligned = paramIsDefault(paradelta)
+	variable fileID
+	HDF5CreateFile/O /P=$path fileID  as fileName
+		if(v_flag)
+		print "Failed to write hdf file"
+		return -1
+	endif
+	// get metadata from the wave itself
+	string facility = stringbykey("facility",note(en_wave))
+	string instrument = stringbykey("instrument",note(en_wave))
+	string technique = stringbykey("technique",note(en_wave))
+	string technique_details = stringbykey("technique_details",note(en_wave))
+	string normalization_method = stringbykey("normalization_method",note(en_wave))
+	string publication_doi = stringbykey("publication_doi",note(en_wave))
+	string submitter = stringbykey("submitter",note(en_wave))
+	string submitter_email = stringbykey("submitter_email",note(en_wave))
+	string corresponding_author = stringbykey("corresponding_author",note(en_wave))
+	string corresponding_author_email = stringbykey("corresponding_author_email",note(en_wave))
+	string chemical_formula = stringbykey("chemical_formula",note(en_wave))
+	string samplename = stringbykey("samplename",note(en_wave))
+	string description = stringbykey("description",note(en_wave))
+	variable density = numberbykey("density",note(en_wave))
+	variable thickness = numberbykey("thickness",note(en_wave))
+	
+	if(density*thickness*0 != 0) // wave does not contain metadata, go for manual entry
+		dfref foldersave = getdataFolderDFR()
+		setdatafolder root:
+		newdatafolder /o/s opticalconstants
+		// check for default values
+		svar /z gdescription, gfacility, ginstrument,gtechnique, gtechnique_details, gnormalization_method, gpublication_doi
+		svar /z gsubmitter, gsubmitter_email, gcorresponding_author, gcorresponding_author_email, gchemical_formula
+		nvar /z gthickness,gdensity
+		if(!svar_exists(gfacility))
+			string /g gfacility = "NSLS-II"
+		endif
+		if(!svar_exists(ginstrument))
+			string /g ginstrument = "SST-1 RSoXS"
+		endif
+		if(!svar_exists(gtechnique))
+			string /g gtechnique = "TEY"
+		endif
+		if(!svar_exists(gtechnique_details))
+			string /g gtechnique_details = "measured with a channeltron detector with 1900V acceleration bias"
+		endif
+		if(!svar_exists(gnormalization_method))
+			string /g gnormalization_method = note(isodelta)
+		endif
+		if(!svar_exists(gpublication_doi))
+			string /g gpublication_doi = "N/A"
+		endif
+		if(!svar_exists(gsubmitter))
+			string /g gsubmitter = "Eliot Gann"
+		endif
+		if(!svar_exists(gsubmitter_email))
+			string /g gsubmitter_email = "eliot.gann@nist.gov"
+		endif
+		if(!svar_exists(gcorresponding_author_email))
+			string /g gcorresponding_author_email = "eliot.gann@nist.gov"
+		endif
+		if(!svar_exists(gcorresponding_author))
+			string /g gcorresponding_author = "Eliot Gann"
+		endif
+		if(!svar_exists(gchemical_formula))
+			string /g gchemical_formula = "C8H8"
+		endif
+		string /g gsamplename = replacestring(".oc",filename,"")
+		if(!svar_exists(gdescription))
+			string /g gdescription = note(isodelta)
+		endif
+		if(!nvar_exists(gdensity))
+			variable /g gdensity = 1.2
+		endif
+		if(!nvar_exists(gthickness))
+			variable /g gthickness = 100
+		endif
+		setdatafolder foldersave
+		// set default values to the input values
+		facility = gfacility
+		instrument = ginstrument
+		technique = gtechnique
+		technique_details = gtechnique_details
+		normalization_method = gnormalization_method
+		publication_doi = gpublication_doi
+		submitter = gsubmitter
+		submitter_email = gsubmitter_email
+		corresponding_author = gcorresponding_author
+		corresponding_author_email = gcorresponding_author_email
+		chemical_formula = gchemical_formula
+		samplename = gsamplename
+		description = gdescription
+		density = gdensity
+		thickness = gthickness	
+		
+		// prompt for information for sample
+		Prompt samplename, "Sample name (simple name): "		// Set prompt for x param
+		Prompt description, "Sample Description (as detailed as you want): "		// Set prompt for y param
+		Prompt chemical_formula, "Chemical Formual (eg C1H4): "		// Set prompt for y param
+		Prompt density, "Enter density of sample (g/cm^3): "		// Set prompt for x param
+		Prompt thickness, "thickness of sample (nm): "		// Set prompt for y param
+		Prompt submitter, "Submitter Name (you): "		// Set prompt for y param
+		Prompt submitter_email, "Submitter Email address: "		// Set prompt for y param
+		
+		doprompt	"Sample Information" samplename, description,chemical_formula, density, thickness, submitter, submitter_email
+		
+		//prompt for information about measurement
+		Prompt facility, "Facility where data was collected: "		// Set prompt for x param
+		Prompt instrument, "Instrument used to collect data: "		// Set prompt for y param
+		Prompt technique, "NEXAFS Technique (TEY/PEY/etc): "		// Set prompt for x param
+		Prompt technique_details, "NEXAFS details: "		// Set prompt for x param
+		Prompt normalization_method, "Describe the normalization method: "		// Set prompt for y param
+		Prompt publication_doi, "Publication DOI:  "		// Set prompt for x param
+		Prompt corresponding_author, "Corresponding Author:  "		// Set prompt for x param
+		Prompt corresponding_author_email, "Corresponding Author Email address: "		// Set prompt for y param
+		
+		doprompt "Measurement/Origin Information" facility,instrument,technique,technique_details,normalization_method, publication_doi,corresponding_author, corresponding_author_email
+		
+		// save these values as default values
+		gfacility = facility
+		ginstrument = instrument
+		gtechnique = technique
+		gtechnique_details = technique_details
+		gnormalization_method = normalization_method
+		gsubmitter = submitter
+		gsubmitter_email = submitter_email
+		gpublication_doi = publication_doi
+		gcorresponding_author = corresponding_author
+		gcorresponding_author_email = corresponding_author_email
+		gchemical_formula = chemical_formula
+		gsamplename = samplename
+		gdescription = description
+		gdensity = density
+		gthickness = thickness	
+	endif
+	// add root attributes
+	HDFstringAttr(fileid,"default","entry","/")
+	HDFstringAttr(fileid,"file_name","filename","/")
+	HDFvarAttr(fileid,"file_time",datetime,"/")
+	HDFstringAttr(fileid,"creator","QANT","/")
+	HDFstringAttr(fileid,"creator_version","1.11","/")
+	HDFstringAttr(fileid,"NeXus_version","4.3.0","/")
+	HDFvarAttr(fileid,"HDF5_version",HDF5LibraryInfo(0),"/")
+	HDFvarAttr(fileid,"HFD5XOP_version",HDF5LibraryInfo(0),"/")
+	//add entry group
+	variable NXEntryID
+	HDF5CreateGroup fileID , "entry" , NXEntryID
+	HDFstringAttr(fileID,"NX_class","NXentry","entry")
+	HDFstringAttr(fileID,"default","dielectric_function","entry")
+	HDFstringDS(NXEntryID,"title",description)
+	//add data group
+	variable nxdataid
+	HDF5CreateGroup NXEntryID , "dielectric_function" , nxdataid
+	
+	HDFstringAttr(NXEntryID,"NX_class","NXdata","dielectric_function")
+	HDFstringAttr(NXEntryID,"signal","delta,beta","dielectric_function")
+	HDFstringAttr(NXEntryID,"delta_axes","energy,orientation","dielectric_function")
+	HDFstringAttr(NXEntryID,"beta_axes","energy,orientation","dielectric_function")
+	
+	
+	duplicate /free en_wave,energy
+	HDF5SaveData /IGOR=0/O /Z energy, nxdataid, "energy"
+	HDFstringAttr(nxdataid,"units","electronvolt","energy")
+	HDFstringAttr(nxdataid,"long_name","Energy [Ev]","energy")
+	
+	if(!unaligned)
+		//HDFstringAttr(NXEntryID,"orientation_type","uniaxial","dielectric_function")
+		make /free orientations = {{0,0,0},{1,0,0},{0,1,1}}
+		make /free /t orientation_type = {"isotropic","face-on parallel","face-on perpendicular"}
+		make /free /t orientation_details = {"isotropic","direction normal to plane of aromatic core","average of directions planar to aromatic core"}
+		//matrixtranspose orientations
+		concatenate /free {isodelta, paradelta, perpdelta}, deltawave
+		concatenate /free {isobeta, parabeta, perpbeta}, betawave
+	else
+		//HDFstringAttr(NXEntryID,"orientation_type","isotropic","dielectric_function")
+		make /free orientations = {0,0,0}
+		make /free /t orientation_type = {"isotropic"}
+		make /free /t orientation_details = {"isotropic"}
+		duplicate /free isodelta, deltawave
+		duplicate /free isobeta, betawave
+	endif
+	
+	HDF5SaveData /IGOR=0/O /Z orientations, nxdataid, "orientation_vector"
+	HDF5SaveData /IGOR=0/O /Z /A="orientation_type" orientation_type, nxdataid, "orientation_vector"
+	HDF5SaveData /IGOR=0/O /Z /A="orientation_details" orientation_details, nxdataid, "orientation_vector"
+	HDF5SaveData /IGOR=0/O /Z deltawave, nxdataid, "delta"
+	HDFstringAttr(nxdataid,"units","","delta")
+	HDFstringAttr(nxdataid,"long_name","delta","delta")
+	HDF5SaveData /IGOR=0/O /Z betawave, nxdataid, "beta"
+	HDFstringAttr(nxdataid,"units","","beta")
+	HDFstringAttr(nxdataid,"long_name","delta","beta")
+	
+	//add origin group
+	variable originid
+	HDF5CreateGroup NXEntryID , "optical_constants_origin" , originID
+	HDFstringDS(originID,"type","NEXAFS")
+	HDFvarAttr(NXEntryID,"time",datetime,"optical_constants_origin")
+	HDFstringAttr(originID,"facility",facility,"type")
+	HDFstringAttr(originID,"instrument",instrument,"type")
+	HDFstringAttr(originID,"technique",technique,"type")
+	HDFstringAttr(originID,"technique_details",technique_details,"type")
+	HDFstringAttr(originID,"normalization_method",normalization_method,"type")
+	HDFstringAttr(NXEntryID,"publication_doi",publication_doi,"optical_constants_origin")
+	HDFstringAttr(NXEntryID,"corresponding_author",corresponding_author,"optical_constants_origin")
+	HDFstringAttr(NXEntryID,"corresponding_author_email",corresponding_author_email,"optical_constants_origin")
+	HDFstringAttr(NXEntryID,"submitter",submitter,"optical_constants_origin")
+	HDFstringAttr(NXEntryID,"submitter_email",submitter_email,"optical_constants_origin")
+	HDFstringAttr(NXEntryID,"database_name","NIST Optical Constants DB","dielectric_function")
+	HDFstringAttr(NXEntryID,"database_accept_hash","untracked","dielectric_function")
+	
+	
+	variable sampleid
+	HDF5CreateGroup NXEntryID , "sample" , sampleid
+	HDFstringAttr(NXEntryID,"NX_class","NXsample","sample")
+	HDFstringDS(sampleid,"type","sample")
+	HDFstringDS(sampleid,"name",samplename)
+	HDFstringDS(sampleid,"description",description)
+	HDFstringDS(sampleid,"chemical_formula",chemical_formula)
+	HDFvarDS(sampleid,"density",density)
+	HDFvarDS(sampleid,"thickness",thickness)
+	HDFstringAttr(sampleid,"units","g/cm^3","density")
+	HDFstringAttr(sampleid,"units","nm","thickness")
+	
+	HDF5CloseFile /z fileid
+	
+
+end
+function HDFstringAttr(variable fileid, string attrname,string attr,string loc)
+	// Write an attribute to the dataset
+	if(strlen(loc)<1)
+		loc = "/"
+	endif
+	Make /FREE /T /N=1 datasetAttribute = attr
+	HDF5SaveData/IGOR=0 /A=attrname datasetAttribute, fileID, loc
+end
+function HDFstringDS(variable locid, string dsname,string sval)
+	// Write a string dataset
+	Make /FREE /T /N=1 dataset = sval
+	HDF5SaveData/IGOR=0 dataset, locid, dsname
+end
+function HDFvarAttr(variable fileid, string attrname,variable attr,string loc)
+	// Write an attribute to the dataset
+	if(strlen(loc)<1)
+		loc = "/"
+	endif
+	Make /FREE /N=1 datasetAttribute = attr
+	HDF5SaveData/IGOR=0 /A=attrname datasetAttribute, fileID, loc
+end
+function HDFvarDS(variable locid, string dsname,variable val)
+	// Write a variable dataset
+	Make /FREE /N=1 dataset = val
+	HDF5SaveData/IGOR=0 dataset, locid, dsname
+end
+function HDFwaveAttr(variable fileid, string attrname,wave attr,string loc)
+	// Write an attribute to the dataset
+	if(strlen(loc)<1)
+		loc = "/"
+	endif
+	HDF5SaveData/IGOR=0 /A=attrname attr, fileID, loc
+end
+
+
+function saveallOCs()
+	string matlist = listOCs()
+	variable i, dosave
+	string mat
+	for(i=0;i<itemsinlist(matlist);i++)
+		mat = stringfromlist(i,matlist)
+		if(OCsexist(mat)==2)
+			doalert /T="Save?" 1, "Aligned Material "+mat+" found.  save?"
+			if(v_flag==1)
+				wave enw = $("root:OpticalConstants:energy_"+mat)
+				wave dw = $("root:OpticalConstants:delta_"+mat)
+				wave bw = $("root:OpticalConstants:beta_"+mat)
+				wave dwe = $("root:OpticalConstants:energy_"+mat+"perp")
+				wave dwa = $("root:OpticalConstants:delta_"+mat+"perp")
+				wave bwe = $("root:OpticalConstants:beta_"+mat+"para")
+				wave bwa = $("root:OpticalConstants:beta_"+mat+"para")
+				testhdf5OCwrite("opticalconstants",mat+".oc",enw,dw,bw,paradelta = dwa,parabeta = bwa,perpdelta = dwe,perpbeta= bwe)
+			endif
+		elseif(OCsExist(mat)==1)
+			doalert /T="Save?" 1, "unaligned Material "+mat+" found.  save?"
+			if(v_flag==1)
+				wave enw = $("root:OpticalConstants:energy_"+mat)
+				wave dw = $("root:OpticalConstants:delta_"+mat)
+				wave bw = $("root:OpticalConstants:beta_"+mat)
+				testhdf5OCwrite("opticalconstants",mat+".oc",enw,dw,bw)
+			endif
+		endif
+	endfor
+end
+
+function loadOC()
+	string foldersave = getdatafolder(1)
+	setdatafolder root:
+	newdatafolder /s/o opticalconstants
+	//newpath /m="Select location of optical constant database: opticalconstants.txt " /O /Q opticalconstants
+	NewPath/C/Z/Q/O opticalconstants SpecialDirPath("Igor Pro User files",0,0,0)+"User Procedures:Optical Constants"
+	//GetFileFolderInfo /P=opticalconstants /Q /Z "opticalconstants.txt"
+	string listoffiles = indexedFile(opticalconstants,-1,".oc")
+	variable i
+	string filename
+	for(i=0;i<itemsinlist(listoffiles);i++)
+		loadOCfile(filename)
+	endfor
+	setdatafolder foldersave
+end
+
+function loadOCfile(string filename)
+	variable fileid
+	
+	HDF5OpenFile /R /z /P=opticalconstants fileid as filename
+	if(v_flag)
+		return -1
+	endif
+	newdatafolder /free loading
+	
+	variable NXentryID
+	HDF5openGroup fileid,"entry",NXentryID
+	HDF5LoadData NXentryID,"Title"
+	variable nxdataid
+	HDF5openGroup NXentryID,"dielectric_function",nxdataid
+	HDF5loadData nxdataid, "energy"
+	
+	if(!unaligned)
+		//HDFstringAttr(NXEntryID,"orientation_type","uniaxial","dielectric_function")
+		make /free orientations = {{0,0,0},{1,0,0},{0,1,1}}
+		make /free /t orientation_type = {"isotropic","face-on parallel","face-on perpendicular"}
+		make /free /t orientation_details = {"isotropic","direction normal to plane of aromatic core","average of directions planar to aromatic core"}
+		//matrixtranspose orientations
+		concatenate /free {isodelta, paradelta, perpdelta}, deltawave
+		concatenate /free {isobeta, parabeta, perpbeta}, betawave
+	else
+		//HDFstringAttr(NXEntryID,"orientation_type","isotropic","dielectric_function")
+		make /free orientations = {0,0,0}
+		make /free /t orientation_type = {"isotropic"}
+		make /free /t orientation_details = {"isotropic"}
+		duplicate /free isodelta, deltawave
+		duplicate /free isobeta, betawave
+	endif
+	
+	HDF5SaveData /IGOR=0/O /Z orientations, nxdataid, "orientation_vector"
+	HDF5SaveData /IGOR=0/O /Z /A="orientation_type" orientation_type, nxdataid, "orientation_vector"
+	HDF5SaveData /IGOR=0/O /Z /A="orientation_details" orientation_details, nxdataid, "orientation_vector"
+	HDF5SaveData /IGOR=0/O /Z deltawave, nxdataid, "delta"
+	HDFstringAttr(nxdataid,"units","","delta")
+	HDFstringAttr(nxdataid,"long_name","delta","delta")
+	HDF5SaveData /IGOR=0/O /Z betawave, nxdataid, "beta"
+	HDFstringAttr(nxdataid,"units","","beta")
+	HDFstringAttr(nxdataid,"long_name","delta","beta")
+	
+	//add origin group
+	variable originid
+	HDF5CreateGroup NXEntryID , "optical_constants_origin" , originID
+	HDFstringDS(originID,"type","NEXAFS")
+	HDFvarAttr(NXEntryID,"time",datetime,"optical_constants_origin")
+	HDFstringAttr(originID,"facility",facility,"type")
+	HDFstringAttr(originID,"instrument",instrument,"type")
+	HDFstringAttr(originID,"technique",technique,"type")
+	HDFstringAttr(originID,"technique_details",technique_details,"type")
+	HDFstringAttr(originID,"normalization_method",normalization_method,"type")
+	HDFstringAttr(NXEntryID,"publication_doi",publication_doi,"optical_constants_origin")
+	HDFstringAttr(NXEntryID,"corresponding_author",corresponding_author,"optical_constants_origin")
+	HDFstringAttr(NXEntryID,"corresponding_author_email",corresponding_author_email,"optical_constants_origin")
+	HDFstringAttr(NXEntryID,"submitter",submitter,"optical_constants_origin")
+	HDFstringAttr(NXEntryID,"submitter_email",submitter_email,"optical_constants_origin")
+	HDFstringAttr(NXEntryID,"database_name","NIST Optical Constants DB","dielectric_function")
+	HDFstringAttr(NXEntryID,"database_accept_hash","untracked","dielectric_function")
+	
+	
+	variable sampleid
+	HDF5CreateGroup NXEntryID , "sample" , sampleid
+	HDFstringAttr(NXEntryID,"NX_class","NXsample","sample")
+	HDFstringDS(sampleid,"type","sample")
+	HDFstringDS(sampleid,"name",samplename)
+	HDFstringDS(sampleid,"description",description)
+	HDFstringDS(sampleid,"chemical_formula",chemical_formula)
+	HDFvarDS(sampleid,"density",density)
+	HDFvarDS(sampleid,"thickness",thickness)
+	HDFstringAttr(sampleid,"units","g/cm^3","density")
+	HDFstringAttr(sampleid,"units","nm","thickness")
+	
+	HDF5CloseFile /z fileid
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+end
