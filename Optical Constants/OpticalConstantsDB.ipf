@@ -923,7 +923,7 @@ function loadOCfile(string filename)
 	
 	setdatafolder ::
 	
-	if(dimsize(orientation_vector,0)==1)
+	if(dimsize(orientation_vector,0)==1 || wavemax(orientation_vector)==0)
 		duplicate /o energy, $("energy_" + name[0])
 		duplicate /o betawave, $("beta_"+name[0])
 		duplicate /o delta, $("delta_"+name[0])
